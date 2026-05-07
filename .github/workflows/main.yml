@@ -1,21 +1,28 @@
 name: Daily Weather Post
 on:
   schedule:
-    - cron: '0 7 * * *' # Codziennie o 7:00 rano UTC
-  workflow_dispatch: # Pozwala odpalić bota ręcznie przyciskiem
+    - cron: '0 7 * * *' 
+  workflow_dispatch: 
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Ta linia wymusza Node.js 24 i ucisza ostrzeżenia
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # To jest OK, ale wymusimy Node24 powyższym env
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # v5 jest stabilna i wspiera nowsze Node
         with:
-          python-version: '3.9'
+          python-version: '3.12' # Używamy nowszego Pythona
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: Run bot
         env:
           IG_USERNAME: ${{ secrets.IG_USERNAME }}
