@@ -1,7 +1,3 @@
 instagrapi
 requests
-Pillowinstagrapi
-requests
-Pillowinstagrapi
-requests
 Pillow
