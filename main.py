@@ -17,15 +17,21 @@ def get_weather():
     try:
         response = requests.get(url)
         res = response.json()
-        if res.get("cod") != 200:
-            print(f"!!! PROBLEM Z API POGODY: {res.get('message')}")
-            return None, None
         
-        temp = int(round(float(res['main']['temp'])))
+        # Jeśli API zwróci błąd (np. 401 - zły klucz), wypiszemy to w logach
+        if res.get("cod") != 200:
+            print(f"!!! PROBLEM Z API POGODY: {res.get('message')} (Kod: {res.get('cod')})")
+            return None, None
+            
+        temp_data = res.get('main', {}).get('temp')
+        if temp_data is None:
+            return None, None
+            
+        temp = int(round(float(temp_data)))
         desc = res['weather'][0]['description']
         return temp, desc
     except Exception as e:
-        print(f"!!! BŁĄD POGODY: {e}")
+        print(f"!!! BŁĄD POŁĄCZENIA POGODY: {e}")
         return None, None
 
 def create_image(temp, desc):
