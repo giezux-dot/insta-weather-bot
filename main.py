@@ -38,14 +38,36 @@ def create_image(temp, desc):
     img.save("upload.jpg")
 
 def run_bot():
-    print("Pobieranie pogody...")
-    temp, desc = get_weather()
-    
-    if temp is None:
-        print("Bot zatrzymany z powodu błędu pobierania danych pogodowych.")
-        return
+    try:
+        temp, desc = get_weather()
+        create_image(temp, desc)
+        
+        cl = Client()
+        
+        # Pobieramy Session ID z Secretów
+        session_id = os.environ.get("IG_SESSIONID")
+        
+        if session_id:
+            print("Próba logowania przez Session ID...")
+            cl.login_by_sessionid(session_id)
+        else:
+            print("Brak Session ID, próba logowania hasłem...")
+            cl.login(USERNAME, PASSWORD)
+            
+        # Sprawdzenie czy zalogowano
+        print(f"Zalogowano jako: {cl.account_info().username}")
 
-    create_image(temp, desc)
+        caption = (
+            f"Dzień dobry! 🌲 Aktualna pogoda na #Roztocze: {temp}°C. \n"
+            f"Warunki: {desc.capitalize()}. \n\n"
+            f"#roztocze #zwierzyniec #pogoda #lubelskie #natura"
+        )
+        
+        cl.photo_upload("upload.jpg", caption)
+        print("Sukces! Post opublikowany.")
+        
+    except Exception as e:
+        print(f"Wystąpił błąd: {e}")
     
     try:
         cl = Client()
