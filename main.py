@@ -39,24 +39,32 @@ def create_image(temp, desc):
 
 def run_bot():
     try:
+        print("Pobieranie pogody...")
         temp, desc = get_weather()
         create_image(temp, desc)
         
         cl = Client()
+        # Zwiększamy timeout, żeby serwer nie zrywał połączenia
+        cl.request_timeout = 30 
         
-        # Pobieramy Session ID z Secretów
         session_id = os.environ.get("IG_SESSIONID")
         
         if session_id:
-            print("Próba logowania przez Session ID...")
-            cl.login_by_sessionid(session_id)
+            print("Logowanie za pomocą Session ID...")
+            try:
+                cl.login_by_sessionid(session_id)
+                # Sprawdzenie czy sesja jest poprawna
+                cl.get_timeline_feed() 
+                print("Zalogowano pomyślnie przez sesję!")
+            except Exception as e:
+                print(f"Sesja wygasła lub jest błędna: {e}")
+                print("Próba logowania tradycyjnego...")
+                cl.login(USERNAME, PASSWORD)
         else:
-            print("Brak Session ID, próba logowania hasłem...")
+            print("Brak Session ID. Logowanie hasłem...")
             cl.login(USERNAME, PASSWORD)
-            
-        # Sprawdzenie czy zalogowano
-        print(f"Zalogowano jako: {cl.account_info().username}")
 
+        print("Publikowanie posta na Roztocze...")
         caption = (
             f"Dzień dobry! 🌲 Aktualna pogoda na #Roztocze: {temp}°C. \n"
             f"Warunki: {desc.capitalize()}. \n\n"
@@ -64,10 +72,10 @@ def run_bot():
         )
         
         cl.photo_upload("upload.jpg", caption)
-        print("Sukces! Post opublikowany.")
+        print("SUKCES! Post jest już na Twoim profilu.")
         
     except Exception as e:
-        print(f"Wystąpił błąd: {e}")
+        print(f"!!! BŁĄD INSTAGRAMA: {str(e)}")
     
     try:
         cl = Client()
