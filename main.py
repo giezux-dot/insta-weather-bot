@@ -3,61 +3,72 @@ import requests
 from instagrapi import Client
 from PIL import Image, ImageDraw
 
-# Pobieranie danych z "Secretów" GitHub
+# --- KONFIGURACJA ---
 USERNAME = os.environ.get("IG_USERNAME")
 PASSWORD = os.environ.get("IG_PASSWORD")
 API_KEY = os.environ.get("WEATHER_API")
 
-# Lokalizacja
 CITY_API = "Zwierzyniec,PL"
 DISPLAY_NAME = "ROZTOCZE"
 
 def get_weather():
     url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY_API}&appid={API_KEY}&units=metric&lang=pl"
     try:
-        res = requests.get(url).json()
+        response = requests.get(url)
+        res = response.json()
         if res.get("cod") != 200:
-            print(f"Błąd API pogody: {res.get('message')}")
+            print(f"!!! PROBLEM Z API POGODY: {res.get('message')}")
             return None, None
         
-        temp = int(round(res['main']['temp']))
+        temp = int(round(float(res['main']['temp'])))
         desc = res['weather'][0]['description']
         return temp, desc
-    except:
+    except Exception as e:
+        print(f"!!! BŁĄD POGODY: {e}")
         return None, None
 
 def create_image(temp, desc):
-    # Generowanie grafiki
-    img = Image.new('RGB', (1080, 1080), color=(34, 139, 34)) # Leśna zieleń
+    img = Image.new('RGB', (1080, 1080), color=(34, 139, 34))
     draw = ImageDraw.Draw(img)
     text = f"{DISPLAY_NAME}\n{temp}°C\n{desc.capitalize()}"
     draw.text((540, 540), text, fill="white", anchor="mm", align="center")
     img.save("upload.jpg")
+    print("Grafika przygotowana.")
 
 def run_bot():
-    print("Pobieranie danych...")
-    temp, desc = get_weather()
+    print("--- START BOTA (METODA: HASŁO) ---")
     
+    # 1. POGODA
+    temp, desc = get_weather()
     if temp is None:
-        print("Nie udało się pobrać pogody. Kończę.")
+        print("BŁĄD: Przerywam, brak danych pogodowych.")
         return
-
+    
     create_image(temp, desc)
     
+    # 2. LOGOWANIE
     cl = Client()
+    cl.request_timeout = 60 # Dłuższy czas na odpowiedź Instagrama
+    
     try:
-        print(f"Próba logowania na konto: {USERNAME}...")
+        print(f"Próba logowania jako: {USERNAME}...")
         cl.login(USERNAME, PASSWORD)
+        print("ZALOGOWANO POMYŚLNIE!")
         
+        # 3. PUBLIKACJA
+        print("Publikowanie na Instagramie...")
         caption = (
-            f"Pogoda na dziś: {temp}°C, {desc}. #roztocze #zwierzyniec #pogoda"
+            f"Dzień dobry! 🌲 Aktualna pogoda na #Roztocze: {temp}°C. \n"
+            f"Warunki: {desc.capitalize()}. \n\n"
+            f"#roztocze #zwierzyniec #pogoda #natura"
         )
-        
         cl.photo_upload("upload.jpg", caption)
-        print("Sukces! Post opublikowany.")
+        print("--- SUKCES! POST OPUBLIKOWANY ---")
+
     except Exception as e:
-        print(f"BŁĄD LOGOWANIA: {e}")
-        print("Podpowiedź: Jeśli widzisz błąd hasła lub 'challenge', Instagram zablokował serwer.")
+        print(f"!!! BŁĄD LOGOWANIA: {e}")
+        print("\nWSKAZÓWKA: Jeśli błąd to 'challenge_required' lub 'incorrect password',")
+        print("wejdź na telefon i kliknij 'TO JA' w powiadomieniach Instagrama.")
 
 if __name__ == "__main__":
     run_bot()
