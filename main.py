@@ -17,31 +17,23 @@ def get_weather():
     try:
         response = requests.get(url)
         res = response.json()
-        
-        # Jeśli API zwróci błąd (np. 401 - zły klucz), wypiszemy to w logach
         if res.get("cod") != 200:
-            print(f"!!! PROBLEM Z API POGODY: {res.get('message')} (Kod: {res.get('cod')})")
+            print(f"!!! PROBLEM Z API POGODY: {res.get('message')}")
             return None, None
-            
-        temp_data = res.get('main', {}).get('temp')
-        if temp_data is None:
-            return None, None
-            
-        temp = int(round(float(temp_data)))
+        
+        temp = int(round(float(res['main']['temp'])))
         desc = res['weather'][0]['description']
         return temp, desc
     except Exception as e:
-        print(f"!!! BŁĄD POŁĄCZENIA POGODY: {e}")
+        print(f"!!! BŁĄD POGODY: {e}")
         return None, None
 
 def create_image(temp, desc):
-    # Tworzenie leśnej grafiki
     img = Image.new('RGB', (1080, 1080), color=(34, 139, 34))
     draw = ImageDraw.Draw(img)
     text = f"{DISPLAY_NAME}\n{temp}°C\n{desc.capitalize()}"
     draw.text((540, 540), text, fill="white", anchor="mm", align="center")
     img.save("upload.jpg")
-    print("Grafika wygenerowana pomyślnie.")
 
 def run_bot():
     print("--- START BOTA ---")
@@ -49,7 +41,7 @@ def run_bot():
     # 1. POGODA
     temp, desc = get_weather()
     if temp is None:
-        print("BŁĄD: Przerywam pracę z powodu braku danych pogodowych.")
+        print("BŁĄD: Przerywam pracę, brak danych pogodowych (Klucz API może być jeszcze nieaktywny).")
         return
     
     create_image(temp, desc)
@@ -57,41 +49,29 @@ def run_bot():
     # 2. LOGOWANIE
     cl = Client()
     cl.request_timeout = 30
-    login_success = False
     
-    if SESSION_ID:
-        print("Próba logowania przez Session ID...")
-        try:
-            cl.login_by_sessionid(SESSION_ID)
-            cl.get_timeline_feed() 
-            print("Zalogowano pomyślnie przez sesję!")
-            login_success = True
-        except Exception as e:
-            print(f"Sesja nie zadziałała: {e}")
-    
-    if not login_success:
-        print("Próba logowania hasłem (ryzykowne na GitHub)...")
-        try:
-            cl.login(USERNAME, PASSWORD)
-            login_success = True
-        except Exception as e:
-            print(f"!!! BŁĄD INSTAGRAMA: {e}")
+    print("Próba logowania przez Session ID...")
+    try:
+        if not SESSION_ID:
+            raise Exception("Brak zmiennej IG_SESSIONID w Secrets!")
+            
+        cl.login_by_sessionid(SESSION_ID)
+        cl.get_timeline_feed() # Test połączenia
+        print("ZALOGOWANO POMYŚLNIE PRZEZ SESJĘ!")
+        
+        # 3. PUBLIKACJA (Tylko jeśli logowanie się udało)
+        print("Publikowanie na Instagramie...")
+        caption = (
+            f"Dzień dobry! 🌲 Aktualna pogoda na #Roztocze: {temp}°C. \n"
+            f"Warunki: {desc.capitalize()}. \n\n"
+            f"#roztocze #zwierzyniec #pogoda #lubelskie #natura"
+        )
+        cl.photo_upload("upload.jpg", caption)
+        print("--- SUKCES! POST OPUBLIKOWANY ---")
 
-    # 3. PUBLIKACJA
-    if login_success:
-        try:
-            print("Publikowanie na Instagramie...")
-            caption = (
-                f"Dzień dobry! 🌲 Aktualna pogoda na #Roztocze: {temp}°C. \n"
-                f"Warunki: {desc.capitalize()}. \n\n"
-                f"#roztocze #zwierzyniec #pogoda #lubelskie #natura"
-            )
-            cl.photo_upload("upload.jpg", caption)
-            print("--- SUKCES! POST OPUBLIKOWANY ---")
-        except Exception as e:
-            print(f"!!! BŁĄD PUBLIKACJI: {e}")
-    else:
-        print("Nie udało się zalogować. Sprawdź IG_SESSIONID.")
+    except Exception as e:
+        print(f"!!! BŁĄD LOGOWANIA/SESJI: {e}")
+        print("Próba logowania hasłem została pominięta, aby uniknąć blokady IP.")
 
 if __name__ == "__main__":
     run_bot()
